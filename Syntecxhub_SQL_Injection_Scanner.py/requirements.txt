@@ -1,0 +1,13 @@
+requests==2.31.0
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+Explanation:
+
+requests → For sending HTTP GET/POST requests
+
+beautifulsoup4 + lxml → For parsing HTML responses (if needed for response analysis)
+
+⚡ Optional packages (only if you use them in your code):
+concurrent.futures  # part of standard library, no need to install
+tqdm               # for progress bars
