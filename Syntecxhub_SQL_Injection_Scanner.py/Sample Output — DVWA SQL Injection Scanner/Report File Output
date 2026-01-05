@@ -1,0 +1,39 @@
+=====================================
+DVWA SQL Injection Scan Report
+=====================================
+
+Target URL:
+http://127.0.0.1/dvwa/vulnerabilities/sqli/
+
+Vulnerability Type:
+SQL Injection (Boolean-based)
+
+Affected Parameter:
+id
+
+Proof of Concept Payload:
+1' OR '1'='1
+
+Description:
+The application does not properly sanitize user-supplied input
+before using it in a SQL query. An attacker can manipulate the
+query logic to bypass intended restrictions.
+
+Impact:
+An attacker may be able to:
+- Bypass authentication
+- Extract sensitive database information
+- Modify or delete database records
+
+Severity:
+High
+
+Remediation:
+- Use prepared statements (parameterized queries)
+- Validate and sanitize all user inputs
+- Implement least-privilege database accounts
+
+Test Environment:
+Application : Damn Vulnerable Web Application (DVWA)
+Security    : Low
+Scan Type   : Authenticated
