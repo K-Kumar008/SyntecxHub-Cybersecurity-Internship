@@ -1,0 +1,10 @@
+# Ignore uploaded/encrypted files
+storage/*
+!storage/.gitkeep
+
+# Ignore private key
+server.key
+
+# Python cache files
+__pycache__/
+*.pyc
